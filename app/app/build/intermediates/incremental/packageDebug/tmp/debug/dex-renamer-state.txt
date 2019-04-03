@@ -1,0 +1,4 @@
+#Sat Mar 30 00:12:56 MSK 2019
+base.0=C\:\\Users\\Admin\\MyApplication\\ocr-reader-complete\\app\\build\\intermediates\\dex\\debug\\mergeDexDebug\\out
+path.0=classes.dex
+renamed.0=classes.dex
