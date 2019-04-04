@@ -5,7 +5,6 @@ import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
-import android.widget.ArrayAdapter;
 import android.widget.Toast;
 
 import java.io.IOException;
@@ -21,16 +20,14 @@ public final class BluetoothAdapter {
 
     android.bluetooth.BluetoothAdapter bluetoothAdapter;
 
+    ArrayList<String> pairedDeviceArrayList;
 
-    ArrayAdapter<String> pairedDeviceAdapter;
     private UUID myUUID;
 
     ThreadConnectBTDevice myThreadConnectBTDevice;
     ThreadConnected myThreadConnected;
     Context context;
     AppCompatActivity parent;
-
-    private StringBuilder sb = new StringBuilder();
 
     public BluetoothAdapter(Context context, AppCompatActivity parent){
         this.context = context;
@@ -45,12 +42,6 @@ public final class BluetoothAdapter {
 
         String stInfo = bluetoothAdapter.getName() + " " + bluetoothAdapter.getAddress();
 
-        onStart();
-
-    } // END onCreate
-
-
-    public void onStart() { // Запрос на включение Bluetooth
 
         if (!bluetoothAdapter.isEnabled()) {
             Intent enableIntent = new Intent(android.bluetooth.BluetoothAdapter.ACTION_REQUEST_ENABLE);
@@ -61,21 +52,30 @@ public final class BluetoothAdapter {
 
     }
 
-    private void setup() { // Создание списка сопряжённых Bluetooth-устройств
-
+    public void setup() { // Создание списка сопряжённых Bluetooth-устройств
         Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
+        Toast.makeText(context, "setup", Toast.LENGTH_LONG).show();
 
         if (pairedDevices.size() > 0) { // Если есть сопряжённые устройства
 
-            ArrayList<BluetoothDevice> pairedDeviceList = new ArrayList<>();
+            pairedDeviceArrayList = new ArrayList<>();
 
             for (BluetoothDevice device : pairedDevices) { // Добавляем сопряжённые устройства - Имя + MAC-адресс
-                pairedDeviceList.add(device);
+                pairedDeviceArrayList.add(device.getName() + "\n" + device.getAddress());
             }
 
-            myThreadConnectBTDevice = new ThreadConnectBTDevice(pairedDeviceList.get(0));
-            myThreadConnectBTDevice.start();  // Запускаем поток для подключения Bluetooth
+            Intent i = new Intent(parent, BluetoothDeviceMenu.class);
+            i.putExtra("DEVICES", pairedDeviceArrayList);
+            parent.startActivityForResult(i, 2);
+
         }
+    }
+
+    public void connect(String MAC){
+        BluetoothDevice device = bluetoothAdapter.getRemoteDevice(MAC.substring(MAC.length() - 17));
+
+        myThreadConnectBTDevice = new ThreadConnectBTDevice(device);
+        myThreadConnectBTDevice.start();  // Запускаем поток для подключения Bluetooth
     }
 
     public void stop() { // Закрытие приложения
@@ -91,10 +91,12 @@ public final class BluetoothAdapter {
 
             try {
                 bluetoothSocket = device.createRfcommSocketToServiceRecord(myUUID);
+                Toast.makeText(context, "Connecting...", Toast.LENGTH_LONG).show();
             }
 
             catch (IOException e) {
                 e.printStackTrace();
+                Toast.makeText(context, "Failed to connect", Toast.LENGTH_LONG).show();
             }
         }
 
@@ -126,6 +128,8 @@ public final class BluetoothAdapter {
 
                 myThreadConnected = new ThreadConnected(bluetoothSocket);
                 myThreadConnected.start(); // запуск потока приёма и отправки данных
+                Toast.makeText(context, "Connecting done", Toast.LENGTH_LONG).show();
+
             }
         }
 
@@ -149,15 +153,13 @@ public final class BluetoothAdapter {
     //method for sending messages from another classes
     public void sendString(String s){
         byte[] bytesToSend = s.getBytes();
-
+        myThreadConnected.write(bytesToSend);
     }
 
 
     private class ThreadConnected extends Thread {    // Поток - приём и отправка данных
 
         private final OutputStream connectedOutputStream;
-
-        private String sbprint;
 
         public ThreadConnected(BluetoothSocket socket) {
 
@@ -169,6 +171,7 @@ public final class BluetoothAdapter {
 
             catch (IOException e) {
                 e.printStackTrace();
+                Toast.makeText(context, "IOException", Toast.LENGTH_LONG).show();
             }
 
             connectedOutputStream = out;
@@ -179,7 +182,6 @@ public final class BluetoothAdapter {
             try {
                 connectedOutputStream.write(buffer);
             } catch (IOException e) {
-                // TODO Auto-generated catch block
                 e.printStackTrace();
             }
         }

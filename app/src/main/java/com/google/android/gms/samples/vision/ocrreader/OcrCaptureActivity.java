@@ -57,7 +57,7 @@ import java.util.Locale;
  * rear facing camera. During detection overlay graphics are drawn to indicate the position,
  * size, and contents of each TextBlock.
  */
-public final class OcrCaptureActivity extends AppCompatActivity implements OcrDetectorProcessorListener{
+public final class OcrCaptureActivity extends AppCompatActivity implements OcrDetectorProcessorListener {
     private static final String TAG = "OcrCaptureActivity";
 
     // Intent request code to handle updating play services if needed.
@@ -83,6 +83,7 @@ public final class OcrCaptureActivity extends AppCompatActivity implements OcrDe
     private TextToSpeech tts;
 
     BluetoothAdapter bluetoothAdapter;
+    boolean BTReady;
 
     /**
      * Initializes the UI and creates the detector pipeline.
@@ -98,6 +99,7 @@ public final class OcrCaptureActivity extends AppCompatActivity implements OcrDe
         // Set good defaults for capturing text.
         boolean autoFocus = true;
         boolean useFlash = false;
+        BTReady = false;
 
 
         if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH)){
@@ -105,8 +107,6 @@ public final class OcrCaptureActivity extends AppCompatActivity implements OcrDe
             finish();
             return;
         }
-
-        bluetoothAdapter = new BluetoothAdapter(getApplicationContext(), this);
 
 
         // Check for the camera permission before accessing the camera.  If the
@@ -139,6 +139,18 @@ public final class OcrCaptureActivity extends AppCompatActivity implements OcrDe
                     }
                 };
         tts = new TextToSpeech(this.getApplicationContext(), listener);
+
+    }
+
+    @Override
+    protected void onStart(){
+        super.onStart();
+        Toast.makeText(getApplicationContext(), "onStart", Toast.LENGTH_LONG).show();
+        if (BTReady){
+            return;
+        }
+        BTReady = true;
+        bluetoothAdapter = new BluetoothAdapter(getApplicationContext(), this);
     }
 
     /**
@@ -375,6 +387,26 @@ public final class OcrCaptureActivity extends AppCompatActivity implements OcrDe
     @Override
     public void onTextDetected(String text) {
         bluetoothAdapter.sendString(text);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data){
+        if (requestCode == 2){
+
+            bluetoothAdapter.connect(data.getStringExtra("RESULT"));
+
+        } else if(requestCode == 1){ // Если разрешили включить Bluetooth, тогда void setup()
+
+            if(resultCode == Activity.RESULT_OK) {
+                bluetoothAdapter.setup();
+            }
+
+            else { // Если не разрешили, тогда закрываем приложение
+
+                Toast.makeText(this, "BlueTooth не включён", Toast.LENGTH_SHORT).show();
+                finish();
+            }
+        }
     }
 
     private class CaptureGestureListener extends GestureDetector.SimpleOnGestureListener {
